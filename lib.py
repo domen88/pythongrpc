@@ -1,14 +1,11 @@
 import os
 from concurrent import futures
-import pandas as pd
-from al import Support
 import grpc
 import time
 
 import chunk_pb2, chunk_pb2_grpc
 
 CHUNK_SIZE = 1024 * 1024  # 1MB
-exit = 0
 tmp_file_idx = 0
 
 
@@ -25,11 +22,6 @@ def save_chunks_to_file(chunks, filename):
     with open(filename, 'wb') as f:
         for chunk in chunks:
             f.write(chunk.buffer)
-
-
-def decomp(filename):
-        df = pd.read_pickle(filename)
-        print(df)
 
 
 class FileClient:
@@ -57,11 +49,9 @@ class FileServer(chunk_pb2_grpc.FileServerServicer):
 
             def upload(self, request_iterator, context):
                 global tmp_file_idx
-                global exit
                 tmp_file_name = 'server_row' + str(tmp_file_idx) + '.zip'
                 save_chunks_to_file(request_iterator, tmp_file_name)
-                Support.calculate(tmp_file_name)
-                exit = 1
+                tmp_file_idx = tmp_file_idx + 1
                 return chunk_pb2.Reply(length=os.path.getsize(tmp_file_name))
 
             def download(self, request, context):
@@ -70,20 +60,13 @@ class FileServer(chunk_pb2_grpc.FileServerServicer):
 
         self.server = grpc.server(futures.ThreadPoolExecutor())
         chunk_pb2_grpc.add_FileServerServicer_to_server(Servicer(), self.server)
-        #self.server.wait_for_termination()
 
-    def start(self, port, idx):
-        global tmp_file_idx
-        global exit
-        tmp_file_idx = idx
-
+    def start(self, port):
         self.server.add_insecure_port(f'[::]:{port}')
         self.server.start()
-        #self.server.wait_for_termination()
 
-        while True:
-            if exit == 1:
-                exit = 0
-                time.sleep(1)
-                self.server.stop(0)
-                break
+        try:
+            while True:
+                time.sleep(60*60*24)
+        except KeyboardInterrupt:
+            self.server.stop(0)

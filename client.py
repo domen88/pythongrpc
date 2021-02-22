@@ -1,38 +1,38 @@
 import pandas as pd
-import os
+import sys
 import lib
 import time
 
 
-def main():
+def main(argv):
+
+    if len(sys.argv) <= 1:
+        print(sys.stderr, 'Usage python ' + sys.argv[0] + ' [nline]')
+        # Exit with error code
+        sys.exit(1)
+
+    line = int(argv[0])
 
     client = lib.FileClient('localhost:9000')
 
     # leggo il csv
-    #scania_train_url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/00421/aps_failure_training_set.csv'
-    scania_train_url ='aps_failure_training_set.csv'
-    scania_train = pd.read_csv(scania_train_url, header=14, na_values='na')
+    nRowsRead = None  # specify 'None' if want to read whole file
+    file_name = './gas-sensor-array-temperature-modulation/20161005_140846.csv'
+    df = pd.read_csv(file_name, delimiter=',', nrows=nRowsRead)
+    number_of_rows = len(df.index)
+    n_packets = int(number_of_rows / line) + 1
 
-    # sostituisco i missing values con la media della colonna
-    scania_train.fillna(scania_train['ab_000'].mean(), inplace=True)
-
-    #print(scania_train)
-
-    # utilizzo le ultime 58k istanze del dataset come se fossero nuovi dati da classificare
-    new_istances = scania_train.drop('class', axis=1).iloc[2000:31000, :]
-
-
-    #print(new_istances)
+    # loop per leggere nrighe alla volta accorparle e inviarle
     i = 0
-    for row in new_istances.itertuples(index=False):
-        df = pd.DataFrame(row)
+    for x in range(n_packets):
+        df1 = df.iloc[i*line:(i+1)*line]
         in_file_name = 'row' + str(i) + '.zip'
         i = i + 1
-        df.to_pickle(in_file_name, compression='zip')
+        df1.to_pickle(in_file_name, compression='zip')
         rep = client.upload(in_file_name)
         print(rep)
-        time.sleep(60)
+        time.sleep(20)
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
