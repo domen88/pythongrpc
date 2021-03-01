@@ -1,6 +1,8 @@
 *~
 .*~
 .DS_Store
+*.zip
 .idea/
 __pycache__/
 gas-sensor-array-temperature-modulation/
+knowledge/

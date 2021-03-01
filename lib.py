@@ -2,11 +2,13 @@ import os
 from concurrent import futures
 import grpc
 import time
+import pandas as pd
 
 import chunk_pb2, chunk_pb2_grpc
 
 CHUNK_SIZE = 1024 * 1024  # 1MB
 tmp_file_idx = 0
+fifo_file = 0
 
 
 def get_file_chunks(filename):
@@ -22,6 +24,17 @@ def save_chunks_to_file(chunks, filename):
     with open(filename, 'wb') as f:
         for chunk in chunks:
             f.write(chunk.buffer)
+
+
+def fifo_file_buffer(filename):
+    global fifo_file
+    if fifo_file == 10:
+        fifo_file = 0
+    df = pd.read_pickle(filename)
+    fifo_file_name = 'k' + str(fifo_file) + '.csv'
+    df.to_csv('knowledge/' + fifo_file_name, index=False)
+    fifo_file = fifo_file + 1
+    return 1
 
 
 class FileClient:
@@ -51,6 +64,7 @@ class FileServer(chunk_pb2_grpc.FileServerServicer):
                 global tmp_file_idx
                 tmp_file_name = 'server_row' + str(tmp_file_idx) + '.zip'
                 save_chunks_to_file(request_iterator, tmp_file_name)
+                fifo_file_buffer(tmp_file_name)
                 tmp_file_idx = tmp_file_idx + 1
                 return chunk_pb2.Reply(length=os.path.getsize(tmp_file_name))
 

@@ -31,7 +31,7 @@ def main(argv):
         df1.to_pickle(in_file_name, compression='zip')
         rep = client.upload(in_file_name)
         print(rep)
-        time.sleep(20)
+        time.sleep(10)
 
 
 if __name__ == '__main__':
